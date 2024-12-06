@@ -13,8 +13,7 @@ from PIL import Image
 from IPython import display
 
 env = gym.make('CartPole-v0', render_mode='rgb_array').unwrapped
-# device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-device = torch.device("cpu")  # Ensure computations use CPU
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")  # Use GPU if available
 
 print("PyTorch version:", torch.__version__)
 
@@ -23,7 +22,6 @@ if torch.cuda.is_available():
     print("Device Count: ", torch.cuda.device_count())
     print("Current Device: ", torch.cuda.current_device())
     print("Device Name: ", torch.cuda.get_device_name(torch.cuda.current_device()))
-
 
 plt.ion()
 
@@ -117,9 +115,9 @@ plt.show()
 epsilon = 0.01 # epsilon greedy exploration-exploitation (higher more random)
 EPS_START = 1 
 EPS_END = 0.001
-TARGET_UPDATE = 50
-BATCH_SIZE = 64
-GAMMA = 0.98
+TARGET_UPDATE = 20  # Increased target network update frequency
+BATCH_SIZE = 128  # Increased batch size for more stable training
+GAMMA = 0.99  # Slightly increased discount factor for long-term reward focus
 
 init_screen = capture_environment_screen()
 _, _, screen_height, screen_width = init_screen.shape
@@ -133,8 +131,8 @@ target_net = Deep_Q_Network(screen_height, screen_width, n_actions).to(device)
 target_net.load_state_dict(policy_net.state_dict())
 target_net.eval()
 
-optimizer = optim.RMSprop(policy_net.parameters())
-replay_buffer = ExperienceBuffer(20000)
+optimizer = optim.Adam(policy_net.parameters(), lr=0.001)  # Changed to Adam optimizer for better convergence
+replay_buffer = ExperienceBuffer(50000)  # Increased buffer size for better experience replay
 
 steps_done = 0
 epsilon_values = [] 
@@ -201,7 +199,6 @@ def plot_training_durations():
     # Clear the current output and display the updated plot
     display.display(plt.gcf())
 
-
 def moving_average(data, window_size=50):
     return np.convolve(data, np.ones(window_size)/window_size, mode='valid')
 
@@ -253,12 +250,13 @@ num_episodes = 1500
 episode_rewards = []  # Store total rewards per episode
 losses = []
 
+epsilon_decay_rate = -np.log(EPS_END / EPS_START) / num_episodes
+
 for i_episode in range(num_episodes):
     env.reset()
     last_screen = capture_environment_screen()
     current_screen = capture_environment_screen()
     state = current_screen - last_screen
-    epsilon_decay_rate = -np.log(EPS_END / EPS_START) / num_episodes
 
     total_reward = 0  # Track total reward for this episode
 
@@ -346,8 +344,6 @@ def run_demo(policy_net, num_episodes=1):
 
     # Close the demo environment
     demo_env.close()
-
-
 
 print('Training is finished')
 run_demo(policy_net, num_episodes=10)
